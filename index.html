@@ -1,1 +1,113 @@
+//สำหรับฟอร์ม
+function onFormSubmit() {
+  
+  var token1 = ["y7ESevYqRsja6jOLWBMrb7n66U9jrsMVdbP1FyxRzhx"];//โทเค่นไลน์ผู้มีสิทธิ์อนุมัติ
+  
+  var form = FormApp.openById('1DEqUsuy764189ElLZzqlLrp1TAnrGZnFLB75ZFIFOUo'); 
+  var fRes = form.getResponses();
+  var formResponse = fRes[fRes.length - 1];
+  var itemResponses = formResponse.getItemResponses();
+  
+  var ss = SpreadsheetApp.openById('1yf1P8Bd6cN9YL5unvmSFNnozsCzMylTNc6iHvQU7ohY');
+  var sheet = ss.getSheetByName('การตอบแบบฟอร์ม 1');
+  var row = sheet.getActiveRange().getLastRow()+1;
 
+//ให้ไปสร้างลิสต์อนุมัติในชีตแผ่น 2 เพื่อดึงค่ามาแสดงที่ชีตแผ่น 1
+   var dynamicList = ss.getSheetByName('sheet3').getRange('A1:A3');
+   var rangeRule = SpreadsheetApp.newDataValidation().requireValueInRange(dynamicList).build();
+   sheet.getRange(row,11).setDataValidation(rangeRule); //คอลัมน์ที่ใช้อนุมัติ คือ 11
+
+  //ส่งอีเมลถึงผู้มีสิทธิ์อนุมัติ
+  var recipients = 'ระบุอีเมลที่ส่ง';
+  var subject = 'ส่งเรื่องขออนุมัติเข้าอบรม '+sheet.getName(); //ชื่อเรื่อง
+  var body = 'คลิกลิ้งค์เพื่ออนุมัติการเข้าอบรม ' + ss.getUrl();//เนื้อหา
+  
+var msg = itemResponses[0].getResponse() + ' : ส่งเรื่องขออนุมัติการเข้าอบรม' +'\n'+ ss.getUrl();;
+
+  sendLineNotify(msg,token1);
+ //MailApp.sendEmail(recipients, subject, body);
+
+}
+
+function sendLineNotify(message,token) {
+  var options = {
+    "method": "post",
+    "payload": "message=" + message,
+    "headers": {
+    "Authorization": "Bearer " + token }
+};
+
+UrlFetchApp.fetch("https://notify-api.line.me/api/notify", options);
+}
+
+//สำหรับชีต
+function approve() {
+   var token2 = "zmLXmzysD23fRl7MJoSBxJT3cJTamTxmWLGHbvNsruv";//โทเค่นไลน์กลุ่มการขออนุมัติ
+   var ss = SpreadsheetApp.getActiveSpreadsheet();
+   var sheet = ss.getActiveSheet();
+   var row = sheet.getActiveRange().getRow();
+   var cellvalue = sheet.getActiveCell().getValue().toString();
+   var sheetName = sheet.getName();   
+
+   //ส่งอีเมลผู้ขออนุญาตไปอบรม
+ //  var recipients = "อีเมล";
+ //  var subject = 'การอนุมัติเข้าอบรม '+sheet.getName(); //ชื่อเรื่อง
+ //  var body = sheet.getName() + 'ท่านสามารถดูผลการอนุมัติเข้าอบรมได้ที่ ' + ss.getUrl();//เนื้อหาอีเมล
+   
+   var date = Utilities.formatDate(new Date(), "GMT+7", "dd/MM/");
+   var year = Number(Utilities.formatDate(new Date(), "GMT+7", "yyyy"));
+   var thaiyear = Number(Utilities.formatDate(new Date(), "GMT+7", "yyyy"))+543;
+   //var time = Utilities.formatDate(new Date(), "GMT+7", "HH:mm");
+  
+   var data1 = sheet.getRange(row, 3,row).getValue();//ชื่อ-นามสกุล
+   var data2 = sheet.getRange(row, 4,row).getValue();//รหัสนักเรียน
+   var data3 = sheet.getRange(row, 5,row).getDisplayValue();//ชั้นมัธยมศึกษา
+   var data4 = sheet.getRange(row, 6,row).getDisplayValue();//ห้อง
+   var data5 = sheet.getRange(row, 7,row).getValue();//ครูที่ปรึกษา
+   var data6 = sheet.getRange(row, 8,row).getDisplayValue();//เวลาขอออกนอกโรงเรียน
+   var data7 = sheet.getRange(row, 9,row).getDisplayValue();//เวลากลับเข้าโรงเรียน
+   var data8 = sheet.getRange(row, 10,row).getDisplayValue();//หมายเหตุ
+
+   var message = 'แจ้งผลการสมัครเข้าอบรม: '+cellvalue+'\n'+'ชื่อ-นามสกุล:'+data1+'\n'+'รหัสนักเรียน:'+data2+'\n'+'ชั้นมัธยมศึกษา:'+data3+'\n'+'ห้อง:'+ data4+'\n'+'ครูที่ปรึกษา:'+data5+'\n'+'เวลาขอออกนอกโรงเรียน:'+data6+'\n'+'เวลากลับเข้าโรงเรียน:'+data7+'\n'+'หมายเหตุ:'+data8 ;
+
+     if (cellvalue == 'อนุมัติ' || cellvalue == 'ไม่อนุมัติ' ) {
+        sendLineNotify(message, token2);
+        createBulkPDFs ();
+      }
+    }
+
+function createBulkPDFs () {
+  const pdfFolder = DriveApp.getFolderById("1TNVkWEtY5IYFK8V2SBoAuzGuO6CVkcrn");
+  const tempFolder = DriveApp.getFolderById("1KYywhPFjCsnm-H7zn8qxYCCBc8QlsmYX");
+  const docFile = DriveApp.getFileById("1yEU5AS0YaCmQsvcFYd_YgcxRzgl8XwS96tB1jKlFY6g");
+  
+  const currentSheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const row = currentSheet.getActiveCell().getRow();
+  const data = currentSheet.getRange(row, 1,1,currentSheet.getLastColumn()).getValues()[0]; 
+  createPDF(data[2], data[3],data[4], data[5], data[2], docFile, tempFolder, pdfFolder);
+
+}
+
+function createPDF (Name,Place,date,approve,pdfName,docFile,tempFolder,pdfFolder) {
+  const tempFile = docFile.makeCopy(tempFolder); 
+  const tempDocFile = DocumentApp.openById(tempFile.getId()); 
+  const body = tempDocFile.getBody(); 
+  
+  body.replaceText("{ชื่อจริง-นามสกุล}", Name); 
+  body.replaceText("{รหัสนักเรียน}", Place); 
+  body.replaceText("{ชั้นและห้อง}", date); 
+  body.replaceText("{ผลการอนุมัติ}", approve);
+  
+  tempDocFile.saveAndClose(); 
+  const pdfContentBlob = tempFile.getAs(MimeType.PDF); 
+  const pdfFile = pdfFolder.createFile(pdfContentBlob).setName(pdfName);
+  pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.COMMENT);
+  
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var row = sheet.getActiveRange().getLastRow();
+  var email = sheet.getRange(row,2).getValue().toString(); //คอลัมน์อีเมล คือคอลัมน์ที่ 2
+
+  MailApp.sendEmail(email, 'การอนุมัติการไปอบรม', 'ดาวน์โหลดเอกสารได้ที่\n'+pdfFile.getUrl());
+  tempFolder.removeFile(tempFile);
+
+}
